@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Represents a citizen's profile with their earned points, gamification status, and ward.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique user ID from Firebase Auth." },
+        "displayName": { "type": "string", "description": "The user's public display name." },
+        "email": { "type": "string", "description": "The user's private email address." },
+        "points": { "type": "integer", "description": "Total gamification points earned by the citizen." },
+        "badge": { "type": "string", "description": "Calculated badge based on points, e.g., Civic Hero." },
+        "ward": { "type": "string", "description": "The home ward or area of the citizen." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp." }
+      },
+      "required": ["uid", "displayName", "email", "points", "badge", "createdAt"]
+    },
+    "Issue": {
+      "title": "Community Infrastructure Issue",
+      "description": "Represents an infrastructure issue reported by a citizen, analyzed by Gemini, and tracked by the community.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique issue ID." },
+        "title": { "type": "string", "description": "Short title auto-generated or entered by user." },
+        "description": { "type": "string", "description": "Citizen voice or text complaint details." },
+        "imageUrl": { "type": "string", "description": "Optional URL to the uploaded evidence image." },
+        "latitude": { "type": "number", "description": "Latitude coordinate of the issue location." },
+        "longitude": { "type": "number", "description": "Longitude coordinate of the issue location." },
+        "address": { "type": "string", "description": "Human-readable address (reverse geocoded)." },
+        "landmark": { "type": "string", "description": "Identified landmark." },
+        "ward": { "type": "string", "description": "Identified ward or area ID." },
+        "category": { "type": "string", "description": "Detected issue category (pothole, garbage, public hazard, water leakage, etc.)." },
+        "severity": { "type": "string", "description": "Detected severity rating: Low, Medium, High, Critical." },
+        "impactPopulation": { "type": "integer", "description": "Estimated count of affected people." },
+        "impactSafety": { "type": "string", "description": "AI-estimated safety risk level." },
+        "impactEnvironment": { "type": "string", "description": "AI-estimated environmental risk level." },
+        "duplicateOf": { "type": "string", "description": "ID of a matching issue to prevent duplicate processing, empty if unique." },
+        "routingDepartment": { "type": "string", "description": "Recommended municipality department (e.g. Municipal Water Department)." },
+        "suggestedActions": { "type": "string", "description": "Gemini-suggested actions for resolution." },
+        "status": { "type": "string", "description": "Issue status: Reported, Verified, Assigned, In Progress, Resolved." },
+        "reporterId": { "type": "string", "description": "UID of the citizen who reported the issue." },
+        "reporterName": { "type": "string", "description": "Display name of the reporter." },
+        "trustScore": { "type": "integer", "description": "Calculated reliability percentage of the issue." },
+        "confirmationCount": { "type": "integer", "description": "Total affirmative community confirmations." },
+        "rejectionCount": { "type": "integer", "description": "Total community rejection votes." },
+        "resolvedCount": { "type": "integer", "description": "Total community already-resolved flags." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when reported." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp when status or fields were last updated." }
+      },
+      "required": ["id", "description", "latitude", "longitude", "address", "ward", "category", "severity", "status", "reporterId", "reporterName", "trustScore", "createdAt", "updatedAt"]
+    },
+    "Verification": {
+      "title": "Community Verification Vote",
+      "description": "Represents a validation or verification action taken by a nearby user on a reported issue.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique verification record ID." },
+        "userId": { "type": "string", "description": "UID of the citizen verifier." },
+        "userName": { "type": "string", "description": "Name of the citizen verifier." },
+        "type": { "type": "string", "description": "Vote type: confirm, reject, resolved." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when verified." }
+      },
+      "required": ["id", "userId", "userName", "type", "createdAt"]
+    },
+    "HotspotConfig": {
+      "title": "Hotspot Risk Prediction",
+      "description": "AI-driven hazard risk mapping for various city wards.",
+      "type": "object",
+      "properties": {
+        "ward": { "type": "string", "description": "Ward identifier or name." },
+        "riskPercentage": { "type": "number", "description": "Risk damage prediction probability (0-100)." },
+        "primaryIssueType": { "type": "string", "description": "Most recurrent issue category in this ward." },
+        "trend": { "type": "string", "description": "Trend indicators: increasing, stable, decreasing." },
+        "recommendation": { "type": "string", "description": "Proactive action recommendation for municipal authorities." },
+        "lastAnalysedAt": { "type": "string", "format": "date-time", "description": "Timestamp of hotspot calculation." }
+      },
+      "required": ["ward", "riskPercentage", "primaryIssueType", "trend", "recommendation", "lastAnalysedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile collection holding gamification points, ratings and personal details."
+    },
+    "/issues/{issueId}": {
+      "schema": "Issue",
+      "description": "Community infrastructure reports with locations, categories, AI metrics, and departments."
+    },
+    "/issues/{issueId}/verifications/{verificationId}": {
+      "schema": "Verification",
+      "description": "Verification ledger where citizens confirm, reject, or mark issues as already resolved."
+    },
+    "/hotspots/{wardId}": {
+      "schema": "HotspotConfig",
+      "description": "Aggregated ward hazard scores and predictive hotspot insights."
+    }
+  }
+}

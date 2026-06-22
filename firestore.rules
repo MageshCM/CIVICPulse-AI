@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity Validations
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'points', 'badge', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.email is string && data.email.size() <= 150 &&
+             data.points is int &&
+             data.badge is string && data.badge.size() <= 50 &&
+             data.createdAt is string;
+    }
+
+    function isValidIssue(data) {
+      return data.keys().hasAll(['id', 'description', 'latitude', 'longitude', 'address', 'ward', 'category', 'severity', 'status', 'reporterId', 'reporterName', 'trustScore', 'createdAt', 'updatedAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.description is string && data.description.size() <= 2000 &&
+             data.address is string && data.address.size() <= 500 &&
+             data.ward is string && data.ward.size() <= 100 &&
+             data.category is string && data.category.size() <= 100 &&
+             data.severity is string && data.severity.size() <= 50 &&
+             data.status is string && data.status.size() <= 50 &&
+             data.reporterId == request.auth.uid &&
+             data.reporterName is string && data.reporterName.size() <= 100 &&
+             data.trustScore is int &&
+             data.createdAt is string &&
+             data.updatedAt is string;
+    }
+
+    function isValidVerification(data) {
+      return data.keys().hasAll(['id', 'userId', 'userName', 'type', 'createdAt']) &&
+             data.keys().size() == 5 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.userId == request.auth.uid &&
+             data.userName is string && data.userName.size() <= 100 &&
+             data.type is string && (data.type == 'confirm' || data.type == 'reject' || data.type == 'resolved') &&
+             data.createdAt is string;
+    }
+
+    // Rules matching collections
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['points', 'badge', 'ward', 'displayName']);
+    }
+
+    match /issues/{issueId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(issueId) && isValidIssue(incoming());
+      
+      allow update: if isSignedIn() && 
+                    (
+                      // Relational update by reporter
+                      (existing().reporterId == request.auth.uid && isValidIssue(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['description', 'latitude', 'longitude', 'address', 'ward', 'status', 'updatedAt'])) ||
+                      // Or simple counter increments/updates if other users verify
+                      (incoming().diff(existing()).affectedKeys().hasOnly(['confirmationCount', 'rejectionCount', 'resolvedCount', 'trustScore', 'status', 'updatedAt', 'category', 'severity']))
+                    );
+    }
+
+    match /issues/{issueId}/verifications/{verificationId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(verificationId) && isValidVerification(incoming());
+      allow update: if false; // Verifications are immutable
+    }
+
+    match /hotspots/{wardId} {
+      // Hotspots are read-only to clients
+      allow read: if isSignedIn();
+      allow write: if false; // Block client modifications completely
+    }
+  }
+}
